@@ -34,19 +34,19 @@ subscriptions _ =
 
 type Msg
     = GotMessage Value
-      -- | GotFrame Frame
-      -- | GotRoleBit Role
-      -- | GotSupportedTechs SupportedTechs
-      -- | Failed Tech String
-      -- | AcknowledgedWebRTC Enforce.WebRTC
-      -- | AcknowledgedVNC Enforce.VNC
-      -- | GotSources (Zipper Source)
-      -- | GotMobile Enforce.Mobile
-      -- | GotDesktop Enforce.Desktop
+    | GotFrame Frame
+    | GotRoleBit Role
+    | GotSupportedTechs SupportedTechs
+    | Failed Tech String
+    | AcknowledgedWebRTC Enforce.WebRTC
+    | AcknowledgedVNC Enforce.VNC
+    | GotSources (Zipper Source)
+    | GotMobile Enforce.Mobile
+    | GotDesktop Enforce.Desktop
     | StartClicked (Zipper Tech)
     | SelectScreenClicked (Zipper Source)
     | SelectWindowClicked (Zipper Source)
-    | SelectedSource (Zipper Source)
+    | SelectedSource Source
     | PopupDissmisClicked
     | PopupSaveClicked (Zipper Source)
     | PopupTabClicked PopupTab
@@ -64,8 +64,8 @@ type Model
     | FailedAck SupportedTechs String
     | VNCWaitingForMobileFlag SupportedTechs Enforce.VNC
     | VNCMobileReady SupportedTechs SingleSource Enforce.VNC Enforce.Mobile
-    | VNCDesktopReady SupportedTechs (MultipleSources PopupTab) Enforce.VNC Enforce.Desktop
-    | WebRTCReady SupportedTechs (MultipleSources ()) Enforce.WebRTC
+    | VNCDesktopReady SupportedTechs MultipleSources Enforce.VNC Enforce.Desktop
+    | WebRTCReady SupportedTechs MultipleSources Enforce.WebRTC
 
 
 type alias SupportedTechs =
@@ -76,9 +76,9 @@ type alias SingleSource =
     TransmissionStatus () Never
 
 
-type alias MultipleSources popupExtraInfo =
+type alias MultipleSources =
     { transmission : TransmissionStatus (Zipper Source) ()
-    , popup : Popup popupExtraInfo
+    , popup : Popup
     }
 
 
@@ -119,8 +119,8 @@ type PopupTab
     | WindowsTab
 
 
-type Popup extraInfo
-    = Open extraInfo
+type Popup
+    = Open (Zipper PopupTab)
     | Closed
 
 
@@ -138,13 +138,6 @@ update _ model =
 
 view : Model -> Html Msg
 view model =
-    let
-        screen =
-            Zipper.singleton (Screen { title = "Tets", id = 0 })
-
-        window =
-            Zipper.singleton (Window { title = "Tets", id = 0 })
-    in
     wrapper "page"
         (case model of
             WaitingForRole ->
@@ -178,55 +171,122 @@ view model =
             VNCWaitingForMobileFlag _ _ ->
                 [ loader, wrapper "bottom" [ disabledButton "Start" ] ]
 
-            VNCMobileReady _ transmissionStatus _ _ ->
-                case transmissionStatus of
+            VNCMobileReady _ transmission _ _ ->
+                case transmission of
                     WaitingForSources _ ->
-                        [ text "This branch never gets executed" ]
+                        [ text "This branch Never gets executed" ]
 
                     Ready _ _ ->
-                        [ text "This branch never gets executed" ]
+                        [ text "This branch Never gets executed" ]
 
                     Active _ frame ->
                         [ h1 [] [ text "Mobile Display" ]
                         , preview frame
                         , wrapper "bottom"
-                            [ button [ onClick StopClicked ] [ text "Stop" ]
-                            , button [ onClick PauseClicked ] [ text "Pause" ]
+                            [ stopButton
+                            , pauseButton
                             ]
                         ]
 
                     Paused _ ->
                         [ h1 [] [ text "Mobile Display" ]
                         , wrapper "bottom"
-                            [ button [ onClick StopClicked ] [ text "Stop" ]
-                            , button [ onClick ResumeClicked ] [ text "Resume" ]
+                            [ stopButton
+                            , resumeButton
                             ]
                         ]
 
-            VNCDesktopReady _ data _ _ ->
-                []
+            VNCDesktopReady _ { transmission, popup } _ _ ->
+                case transmission of
+                    WaitingForSources _ ->
+                        [ wrapper "bottom"
+                            [ stopButton ]
+                        ]
 
-            WebRTCReady _ data _ ->
-                []
+                    Ready sources _ ->
+                        [ wrapper "bottom"
+                            [ stopButton
+                            , selectScreenButton sources
+                            , selectWindowButton sources
+                            ]
+                        , popupView Nothing sources popup
+                        ]
+
+                    Active sources frame ->
+                        [ h1 []
+                            [ Zipper.current sources
+                                |> transmissionSourceLabel
+                                |> text
+                            ]
+                        , preview frame
+                        , wrapper "bottom"
+                            [ stopButton
+                            , selectScreenButton sources
+                            , selectWindowButton sources
+                            , pauseButton
+                            ]
+                        , popupView (Just (Zipper.current sources)) sources popup
+                        ]
+
+                    Paused sources ->
+                        [ h1 []
+                            [ Zipper.current sources
+                                |> transmissionSourceLabel
+                                |> text
+                            ]
+                        , wrapper "bottom"
+                            [ stopButton
+                            , selectScreenButton sources
+                            , selectWindowButton sources
+                            , resumeButton
+                            ]
+                        , popupView (Just (Zipper.current sources)) sources popup
+                        ]
+
+            WebRTCReady _ { transmission, popup } _ ->
+                case transmission of
+                    WaitingForSources _ ->
+                        [ wrapper "bottom"
+                            [ stopButton ]
+                        ]
+
+                    Ready sources _ ->
+                        [ wrapper "bottom"
+                            [ stopButton
+                            , selectScreenButton sources
+                            ]
+                        , popupView Nothing sources popup
+                        ]
+
+                    Active sources frame ->
+                        [ h1 []
+                            [ Zipper.current sources
+                                |> transmissionSourceLabel
+                                |> text
+                            ]
+                        , preview frame
+                        , wrapper "bottom"
+                            [ stopButton
+                            , selectScreenButton sources
+                            , pauseButton
+                            ]
+                        , popupView (Just (Zipper.current sources)) sources popup
+                        ]
+
+                    Paused sources ->
+                        [ h1 []
+                            [ Zipper.current sources
+                                |> transmissionSourceLabel
+                                |> text
+                            ]
+                        , wrapper "bottom"
+                            [ stopButton
+                            , selectScreenButton sources
+                            , resumeButton
+                            ]
+                        , popupView (Just (Zipper.current sources)) sources popup
+                        ]
         )
-
-
-
--- h1 [] [ text "Mobile Display" ]
---         , preview frame
---         , div []
---             [ button [ onClick (StartClicked tech) ] [ text "Start" ]
---             , button [ onClick StopClicked ] [ text "Stop" ]
---             , button [ onClick PauseClicked ] [ text "Pause" ]
---             , button [ onClick ResumeClicked ] [ text "Resume" ]
---             , button [ onClick (SelectScreenClicked screen) ] [ text "Select Screen" ]
---             , button [ onClick (SelectWindowClicked window) ] [ text "Select Window" ]
---             ]
-
-
-loader : Html msg
-loader =
-    div [] [ text "Loading" ]
 
 
 wrapper : String -> List (Html msg) -> Html msg
@@ -236,44 +296,16 @@ wrapper className content =
         content
 
 
+loader : Html msg
+loader =
+    div [] [ text "Loading" ]
+
+
 disabledButton : String -> Html Msg
 disabledButton name =
     button
         [ disabled True ]
         [ text name ]
-
-
-popup : Zipper Source -> PopupTab -> Html Msg
-popup source activeTab =
-    div [ class "popup" ]
-        [ div []
-            [ nav []
-                [ ul []
-                    [ li
-                        [ classList [ ( "active", activeTab == ScreensTab ) ]
-                        , onClick (PopupTabClicked ScreensTab)
-                        ]
-                        [ text "Screens" ]
-                    , li
-                        [ classList [ ( "active", activeTab == WindowsTab ) ]
-                        , onClick (PopupTabClicked WindowsTab)
-                        ]
-                        [ text "Windows" ]
-                    ]
-                ]
-            , div [ class "popup-body" ]
-                [ ul []
-                    [ li
-                        [ onClick (SelectedSource source) ]
-                        [ text "Screen 1" ]
-                    ]
-                ]
-            ]
-        , div []
-            [ button [ class "btn-primary", onClick (PopupSaveClicked source) ] [ text "Save" ]
-            , button [ onClick PopupDissmisClicked ] [ text "Close" ]
-            ]
-        ]
 
 
 previewCanvas : List (Attribute msg) -> List (Html msg) -> Html msg
@@ -289,22 +321,167 @@ preview (Frame frame) =
         []
 
 
-transmissionLabel : SourceData -> String
-transmissionLabel { title, id } =
+transmissionSourceLabel : Source -> String
+transmissionSourceLabel source =
+    case source of
+        Screen data ->
+            transmissionLabelHelper data
+
+        Window data ->
+            transmissionLabelHelper data
+
+
+transmissionLabelHelper : SourceData -> String
+transmissionLabelHelper { title, id } =
     title ++ " - " ++ toString id
 
 
-showPause : TransmissionStatus a b -> Bool
-showPause status =
-    case status of
-        WaitingForSources _ ->
+stopButton : Html Msg
+stopButton =
+    button [ onClick StopClicked ] [ text "Stop" ]
+
+
+resumeButton : Html Msg
+resumeButton =
+    button [ onClick ResumeClicked ] [ text "Resume" ]
+
+
+pauseButton : Html Msg
+pauseButton =
+    button [ onClick PauseClicked ] [ text "Pause" ]
+
+
+selectScreenButton : Zipper Source -> Html Msg
+selectScreenButton sources =
+    button [ onClick (SelectScreenClicked sources) ] [ text "Select Screen" ]
+
+
+selectWindowButton : Zipper Source -> Html Msg
+selectWindowButton sources =
+    button [ onClick (SelectWindowClicked sources) ] [ text "Select Window" ]
+
+
+popupView : Maybe Source -> Zipper Source -> Popup -> Html Msg
+popupView selectedSource sources popup =
+    case popup of
+        Closed ->
+            emptyNode
+
+        Open tabs ->
+            wrapper "popup"
+                [ popupNavView tabs
+                , wrapper "popup-body" (popupBody selectedSource sources tabs)
+                , wrapper "popup-footer"
+                    [ button [ onClick PopupDissmisClicked ] [ text "Close" ]
+                    , button [ class "btn-primary", onClick (PopupSaveClicked sources) ] [ text "Save" ]
+                    ]
+                ]
+
+
+popupNavView : Zipper PopupTab -> Html Msg
+popupNavView tabs =
+    let
+        currentTab =
+            Zipper.current tabs
+    in
+    if Zipper.length tabs > 1 then
+        wrapper "popup-nav"
+            [ nav []
+                [ ul []
+                    (Zipper.toList
+                        tabs
+                        |> List.map (\tab -> popupTabView (currentTab == tab) tab)
+                    )
+                ]
+            ]
+
+    else
+        emptyNode
+
+
+popupTabView : Bool -> PopupTab -> Html Msg
+popupTabView isActive tab =
+    li
+        [ classList [ ( "active", isActive ) ]
+        , onClick (PopupTabClicked tab)
+        ]
+        [ tabLabel tab |> text ]
+
+
+tabLabel : PopupTab -> String
+tabLabel tab =
+    case tab of
+        ScreensTab ->
+            "Screens"
+
+        WindowsTab ->
+            "Windows"
+
+
+popupBody : Maybe Source -> Zipper Source -> Zipper PopupTab -> List (Html Msg)
+popupBody selectedSource sources tabs =
+    Zipper.toList sources
+        |> filterSourcesForTab (Zipper.current tabs)
+        |> List.map
+            (\source ->
+                let
+                    isActive =
+                        sourceIsActive selectedSource sources
+                in
+                selectableItemView isActive source
+            )
+
+
+selectableItemView : Bool -> Source -> Html Msg
+selectableItemView isActive source =
+    li
+        [ classList [ ( "active", isActive ) ], onClick (SelectedSource source) ]
+        [ source |> transmissionSourceLabel |> text ]
+
+
+sourceIsActive : Maybe Source -> Zipper Source -> Bool
+sourceIsActive maybeSource sources =
+    case maybeSource of
+        Just source ->
+            Zipper.current sources == source
+
+        Nothing ->
             False
 
-        Ready _ _ ->
-            False
 
-        Active _ _ ->
+isScreenSource : Source -> Bool
+isScreenSource source =
+    case source of
+        Screen _ ->
             True
 
-        Paused _ ->
+        Window _ ->
             False
+
+
+isWindowSource : Source -> Bool
+isWindowSource source =
+    case source of
+        Screen _ ->
+            False
+
+        Window _ ->
+            True
+
+
+filterSourcesForTab : PopupTab -> List Source -> List Source
+filterSourcesForTab tab sources =
+    List.filter
+        (case tab of
+            ScreensTab ->
+                isScreenSource
+
+            WindowsTab ->
+                isWindowSource
+        )
+        sources
+
+
+emptyNode : Html msg
+emptyNode =
+    text ""
