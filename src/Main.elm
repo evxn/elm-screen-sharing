@@ -210,7 +210,7 @@ view model =
                             , selectScreenButton sources
                             , selectWindowButton sources
                             ]
-                        , popupView Nothing sources popup
+                        , popupView transmission sources popup
                         ]
 
                     Active sources frame ->
@@ -226,7 +226,7 @@ view model =
                             , selectWindowButton sources
                             , pauseButton
                             ]
-                        , popupView (Just (Zipper.current sources)) sources popup
+                        , popupView transmission sources popup
                         ]
 
                     Paused sources ->
@@ -241,7 +241,7 @@ view model =
                             , selectWindowButton sources
                             , resumeButton
                             ]
-                        , popupView (Just (Zipper.current sources)) sources popup
+                        , popupView transmission sources popup
                         ]
 
             WebRTCReady _ { transmission, popup } _ ->
@@ -256,7 +256,7 @@ view model =
                             [ stopButton
                             , selectScreenButton sources
                             ]
-                        , popupView Nothing sources popup
+                        , popupView transmission sources popup
                         ]
 
                     Active sources frame ->
@@ -271,7 +271,7 @@ view model =
                             , selectScreenButton sources
                             , pauseButton
                             ]
-                        , popupView (Just (Zipper.current sources)) sources popup
+                        , popupView transmission sources popup
                         ]
 
                     Paused sources ->
@@ -285,7 +285,7 @@ view model =
                             , selectScreenButton sources
                             , resumeButton
                             ]
-                        , popupView (Just (Zipper.current sources)) sources popup
+                        , popupView transmission sources popup
                         ]
         )
 
@@ -362,13 +362,28 @@ selectWindowButton sources =
     button [ onClick (SelectWindowClicked sources) ] [ text "Select Window" ]
 
 
-popupView : Maybe Source -> Zipper Source -> Popup -> Html Msg
-popupView selectedSource sources popup =
+popupView : TransmissionStatus (Zipper Source) pending -> Zipper Source -> Popup -> Html Msg
+popupView transmission sources popup =
     case popup of
         Closed ->
             emptyNode
 
         Open tabs ->
+            let
+                selectedSource =
+                    case transmission of
+                        WaitingForSources _ ->
+                            Nothing
+
+                        Ready _ _ ->
+                            Nothing
+
+                        Active _ _ ->
+                            Just (Zipper.current sources)
+
+                        Paused _ ->
+                            Just (Zipper.current sources)
+            in
             wrapper "popup"
                 [ popupNavView tabs
                 , wrapper "popup-body" (popupBody selectedSource sources tabs)
@@ -406,11 +421,11 @@ popupTabView isActive tab =
         [ classList [ ( "active", isActive ) ]
         , onClick (PopupTabClicked tab)
         ]
-        [ tabLabel tab |> text ]
+        [ popupTabLabel tab |> text ]
 
 
-tabLabel : PopupTab -> String
-tabLabel tab =
+popupTabLabel : PopupTab -> String
+popupTabLabel tab =
     case tab of
         ScreensTab ->
             "Screens"
