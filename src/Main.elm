@@ -43,7 +43,7 @@ type Msg
     | GotSources (Zipper Source)
     | GotMobile Enforce.Mobile
     | GotDesktop Enforce.Desktop
-    | StartClicked (Zipper Tech)
+    | StartClicked SupportedTechs
     | SelectScreenClicked (Zipper Source)
     | SelectWindowClicked (Zipper Source)
     | SelectedSource Source
