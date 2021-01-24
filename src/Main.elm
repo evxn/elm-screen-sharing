@@ -62,6 +62,7 @@ type Model
     | NotInitiatedAck SupportedTechs
     | WaitingForAck SupportedTechs
     | FailedAck SupportedTechs String
+      -- enforcement arguments cannot be created directly. you can only get one from a specific message
     | VNCWaitingForMobileFlag SupportedTechs Enforce.VNC
     | VNCMobileReady SupportedTechs SingleSource Enforce.VNC Enforce.Mobile
     | VNCDesktopReady SupportedTechs MultipleSources Enforce.VNC Enforce.Desktop
