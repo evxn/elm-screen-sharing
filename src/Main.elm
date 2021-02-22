@@ -48,7 +48,7 @@ type Msg
     | SelectWindowClicked (Zipper Source)
     | SelectedSource Source
     | PopupDissmisClicked
-    | PopupSaveClicked (Zipper Source)
+    | PopupSaveClicked (Maybe Source)
     | PopupTabClicked PopupTab
     | PauseClicked
     | ResumeClicked
